@@ -1,7 +1,7 @@
 version: 2
 updates:
-  # Python dependencies via pip (pyproject.toml)
-  - package-ecosystem: "pip"
+  # Python dependencies via uv (pyproject.toml + uv.lock)
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -16,27 +16,17 @@ updates:
     open-pull-requests-limit: 5
     # Group related dependencies
     groups:
-      # Group all non-dev dependencies separately from dev dependencies
-      production:
-        applies-to: version-updates
+      # Group all minor and patch updates together
+      minor-and-patch:
         update-types:
           - "minor"
           - "patch"
-      dev:
-        applies-to: version-updates
-        update-types:
-          - "minor"
-          - "patch"
-      # Group major updates together but limit them
-      major-updates:
+      # Group major updates separately for careful review
+      major:
         update-types:
           - "major"
-      # Group critical security updates with high priority
-      security:
-        applies-to: security-updates
     # Rebase PRs if they become out of date
     rebase-strategy: "auto"
     # Ignore certain packages if needed (none for now, but structure is here)
-    ignore: []
-      # Add any packages you want to ignore here
+    # ignore:
       # - dependency-name: "package-name"
