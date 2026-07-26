@@ -11,7 +11,7 @@ The short version:
   `uv run pyright`, and `uv run pytest` all pass before opening a PR.
 - Schema or relay changes also need the integration suite
   (`uv run pytest -m integration`) against a real Postgres — see
-  [README.md → Development](./README.md#development).
+  [AGENTS.md → Commands](./AGENTS.md#commands).
 - PR titles must follow [Conventional Commits](https://www.conventionalcommits.org/)
   (the repo squash-merges; a CI check enforces the title).
 - Non-trivial changes to the public API, schema, or delivery semantics start

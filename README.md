@@ -40,14 +40,16 @@ Bundled skills for Claude Code / GitHub Copilot — install with `uvx library-sk
 
 ## Versioning
 
-See [VERSIONING.md](./VERSIONING.md). Short version: SemVer, `0.x` until the
-public API is ready to hold stable, and the DB schema versions separately
-from the Python API since a schema change can break you with zero Python
-code touched.
+See [VERSIONING.md](https://github.com/tolerl1/outbox-core/blob/main/VERSIONING.md).
+Short version: SemVer, `0.x` until the public API is ready to hold stable,
+and the DB schema versions separately from the Python API since a schema
+change can break you with zero Python code touched.
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md). The full contributor guide lives in [AGENTS.md](./AGENTS.md) — repo map, commands, invariants, style, and docs sync requirements.
+See [CONTRIBUTING.md](https://github.com/tolerl1/outbox-core/blob/main/CONTRIBUTING.md).
+The full contributor guide lives in [AGENTS.md](https://github.com/tolerl1/outbox-core/blob/main/AGENTS.md)
+— repo map, commands, invariants, style, and docs sync requirements.
 
 ## License
 
