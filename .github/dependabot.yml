@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # Python dependencies via uv (pyproject.toml + uv.lock)
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    pull-request-branch-name:
+      separator: "/"
+    commit-message:
+      prefix: "chore(deps):"
+      include: "scope"
+    # Limit the number of open PRs
+    open-pull-requests-limit: 5
+    # Group related dependencies
+    groups:
+      # Group all minor and patch updates together
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+      # Group major updates separately for careful review
+      major:
+        update-types:
+          - "major"
+    # Rebase PRs if they become out of date
+    rebase-strategy: "auto"
+    # Ignore certain packages if needed (none for now, but structure is here)
+    # ignore:
+      # - dependency-name: "package-name"
