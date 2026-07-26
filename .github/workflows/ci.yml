@@ -1,0 +1,143 @@
+name: CI
+
+# Every pull request runs this workflow, but the expensive jobs only run when
+# something they actually check changed — the `changes` job decides. The
+# `ci-ok` gate always reports a result either way, so branch protection can
+# require the single "CI OK" check without docs-only PRs hanging forever on
+# jobs that never start. (Markdown-only changes — README, docs/, specs/ —
+# skip the real jobs; the docs site has its own build check in docs.yml.
+# The skills under src/outbox/.agents/skills/ are part of the published
+# package, so they're covered by the src/ path filter below, not this
+# docs-only carve-out.)
+#
+# Pushes to main keep a path filter: nothing evaluates required checks there,
+# so a docs-only merge can skip the workflow entirely.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - '**.py'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.python-version'
+      - '.pre-commit-config.yaml'
+      - '.github/workflows/ci.yml'
+  pull_request:
+
+# CI only reads the repo; never hand jobs a writable token by default.
+permissions:
+  contents: read
+
+# Third-party actions are pinned by commit SHA (the comment tracks the tag)
+# so a repointed tag can't silently change what runs here.
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+      - id: filter
+        name: Detect whether code or tool config changed
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        # Keep this pattern in sync with the push path filter above.
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "origin/${BASE_REF}...HEAD")"
+          printf 'Changed files:\n%s\n' "$changed"
+          if printf '%s\n' "$changed" | grep -qE '^(src/|tests/)|\.py$|^(pyproject\.toml|uv\.lock|\.python-version|\.pre-commit-config\.yaml|\.github/workflows/ci\.yml)$'; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  lint:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+
+  typecheck:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run pyright
+
+  test-unit:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run pytest -m "not integration"
+
+  test-integration:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        postgres-version: [16, 17, 18]
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres-version }}
+        env:
+          POSTGRES_PASSWORD: outbox
+          POSTGRES_DB: outbox_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      OUTBOX_TEST_DATABASE_URL: postgresql://postgres:outbox@localhost:5432/outbox_test
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: astral-sh/setup-uv@caf0cab7a618c569241d31dcd442f54681755d39 # v3.2.4
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run pytest -m integration
+
+  # The one check to mark "required" in branch protection. Passes when every
+  # job above succeeded or was skipped (docs-only change); fails if any
+  # failed or was cancelled. `always()` makes it report even when the code
+  # jobs never ran.
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [changes, lint, typecheck, test-unit, test-integration]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any required job failed or was cancelled
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - run: echo "All required jobs passed (or were skipped for a docs-only change)."

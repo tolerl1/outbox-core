@@ -1,0 +1,58 @@
+version: 2
+updates:
+  # Python dependencies via pip (pyproject.toml)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+    pull-request-branch-name:
+      separator: "/"
+    commit-message:
+      prefix: "chore(deps):"
+      include: "scope"
+    # Limit the number of open PRs
+    open-pull-requests-limit: 5
+    # Limit the number of commits per PR
+    commit-message:
+      prefix: "chore(deps):"
+    # Group related dependencies
+    groups:
+      # Group all non-dev dependencies separately from dev dependencies
+      production:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      dev:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group major updates together but limit them
+      major-updates:
+        update-types:
+          - "major"
+      # Group critical security updates with high priority
+      security:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+    # Rebase PRs if they become out of date
+    rebase-strategy: "auto"
+    # Allow automerge for certain updates
+    auto-merge:
+      enabled: true
+      squash: true
+      # Only automerge non-major patches for dev dependencies
+      allowed-updates:
+        - dependency-type: "development"
+          update-types:
+            - "minor"
+            - "patch"
+    # Ignore certain packages if needed (none for now, but structure is here)
+    ignore:
+      # Add any packages you want to ignore here
+      # - dependency-name: "package-name"

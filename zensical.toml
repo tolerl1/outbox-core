@@ -1,0 +1,73 @@
+# Zensical (https://zensical.org) config for the docs site.
+# Preview locally:  uv run --group docs zensical serve
+# Build:            uv run --group docs zensical build   (outputs to site/)
+
+[project]
+site_name = "outbox-core"
+site_description = "A broker-agnostic transactional outbox for SQLAlchemy (async) + Postgres."
+site_author = "Logan Toler"
+site_url = "https://tolerl1.github.io/outbox-core/"
+repo_url = "https://github.com/tolerl1/outbox-core"
+copyright = """
+Copyright &copy; 2026 Logan Toler
+"""
+
+nav = [
+  { "Overview" = "index.md" },
+  { "Writing" = "writing.md" },
+  { "Delivering" = "delivering.md" },
+  { "API Reference" = "reference.md" },
+  { "Schema" = "schema.md" },
+  { "Operations" = "operations.md" },
+  { "Versioning" = "versioning.md" },
+  { "Contributing" = "contributing.md" },
+]
+
+[project.theme]
+features = [
+  "content.code.annotate",
+  "content.code.copy",
+  "content.footnote.tooltips",
+  "content.tooltips",
+  "navigation.footer",
+  "navigation.indexes",
+  "navigation.instant",
+  "navigation.instant.prefetch",
+  "navigation.path",
+  "navigation.sections",
+  "navigation.top",
+  "navigation.tracking",
+  "search.highlight",
+]
+
+[[project.theme.palette]]
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "Switch to light mode"
+
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.def_list]
+[project.markdown_extensions.footnotes]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions.toc]
+permalink = true
+[project.markdown_extensions.pymdownx.betterem]
+[project.markdown_extensions.pymdownx.details]
+[project.markdown_extensions.pymdownx.highlight]
+anchor_linenums = true
+line_spans = "__span"
+pygments_lang_class = true
+[project.markdown_extensions.pymdownx.inlinehilite]
+[project.markdown_extensions.pymdownx.magiclink]
+[project.markdown_extensions.pymdownx.superfences]
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
+combine_header_slug = true
+[project.markdown_extensions.pymdownx.tasklist]
+custom_checkbox = true
