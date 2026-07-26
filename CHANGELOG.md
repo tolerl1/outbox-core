@@ -9,6 +9,12 @@ as a breaking change while the public API and schema are still moving.
 
 ## [Unreleased]
 
+### Changed
+
+- Bumped the `sqlalchemy[asyncio]` requirement from `>=2.0` to `>=2.0.51`.
+- Bumped the `uv_build` requirement from `>=0.8.17,<0.9.0` to
+  `>=0.11.32,<0.12.0`.
+
 ## [0.1.0] - 2026-07-26
 
 ### Added
