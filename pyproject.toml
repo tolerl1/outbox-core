@@ -9,7 +9,7 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "sqlalchemy[asyncio]>=2.0",
+    "sqlalchemy[asyncio]>=2.0.51",
     "asyncpg>=0.29",
     "pydantic>=2.0",
 ]
@@ -45,7 +45,7 @@ Issues = "https://github.com/tolerl1/outbox-core/issues"
 Changelog = "https://github.com/tolerl1/outbox-core/blob/main/CHANGELOG.md"
 
 [build-system]
-requires = ["uv_build>=0.8.17,<0.9.0"]
+requires = ["uv_build>=0.11.32,<0.12.0"]
 build-backend = "uv_build"
 
 [tool.uv.build-backend]
