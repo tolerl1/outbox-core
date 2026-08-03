@@ -55,12 +55,12 @@ module-name = "outbox"
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.26",
-    "ruff>=0.7",
+    "ruff>=0.16.1",
     "pyright>=1.1.380",
-    "commitizen>=3.29",
+    "commitizen>=4.17.0",
 ]
 docs = [
-    "zensical>=0.0.51",
+    "zensical>=0.0.52",
 ]
 
 [tool.pytest.ini_options]
