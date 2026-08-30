@@ -153,3 +153,49 @@ abstract. Re-run it after any change to `batch_size`, `dispatch_concurrency`,
 or `lease_duration` you're considering, on the environment you're actually
 tuning for, and compare the runs to each other rather than to numbers from
 a README or a blog post (including this one).
+
+## Getting a realistic benchmark
+
+The gaps between the example run above and a production-shaped one aren't
+sandbox-specific — they're the gaps between *any* convenient benchmark
+setup and a real one. Closing them is what turns this script from a smoke
+test into a number worth planning around:
+
+- **Use your real `MessageProvider`**, against a real (non-production)
+  instance of your actual broker — not `--send-latency-ms`. This is the
+  single biggest fix: a flat sleep captures none of a real transport's
+  serialization cost, connection overhead, or tail latency.
+- **Match your production Postgres class**: same version, same
+  `shared_buffers` / `max_connections` / checkpoint settings, same
+  durability settings (`synchronous_commit`, `fsync`) you actually run
+  with — don't disable them just to inflate a number.
+- **Run the client on a separate host from Postgres**, in the network
+  topology you'll actually deploy (same AZ/VPC, or whatever your real hop
+  is). `poll_once()` makes several round trips per cycle, and a same-host
+  benchmark erases every one of them.
+- **Match your production storage.** Whatever's actually backing the
+  database — a provisioned-IOPS volume, a managed Postgres service, local
+  NVMe. Disk/WAL fsync latency dominates this workload more than CPU does,
+  and it's the single biggest swing between a sandbox and a real
+  deployment.
+- **Pre-populate a realistic retained backlog** before timing (rows/day ×
+  your retention window), so the claim query is exercised at the table
+  size you'll actually run at, not an empty-table best case.
+- **Match your real worker count.** If you run N `Relay` processes in
+  production, run N against the same table here too — that's what actually
+  exercises `SKIP LOCKED` contention.
+- **Run your app's normal `enqueue()` traffic concurrently**, with
+  autovacuum on at production-like settings — the outbox table is rarely
+  the only thing touching that database.
+- **Repeat trials.** One discarded warm-up run, then at least three timed
+  trials per configuration, reporting the median (and p95 if you can) —
+  not a single sample. Run each trial long enough to span at least one
+  checkpoint interval (`checkpoint_timeout` defaults to 5 minutes); a
+  shorter run can look artificially fast or slow depending on where it
+  lands in the checkpoint cycle.
+- **Record what the number depends on**, alongside it: Postgres version
+  and every config value that differs from default, instance type/vCPU/RAM,
+  storage type and provisioned IOPS if applicable, network topology, worker
+  count, and the sweep settings you ran (`--rows` / `--batch-sizes` /
+  `--concurrency`). A `msgs/sec` figure with none of that attached is no
+  more trustworthy than the sandbox numbers earlier in this doc.
