@@ -15,6 +15,11 @@ as a breaking change while the public API and schema are still moving.
   sweeping `RelayConfig.batch_size` / `dispatch_concurrency` combinations
   against a real Postgres, with methodology and hardware-variance caveats
   in `docs/benchmarks.md`. Not part of the test suite or CI.
+- `benchmarks/benchmark.py --provider sqs` — an optional real SQS-backed
+  `MessageProvider` (via `boto3`, `uv sync --group bench`) so the benchmark
+  can measure a real transport instead of simulated latency. Pairs with the
+  new companion [outbox-core-bench-infra](https://github.com/tolerl1/outbox-core-bench-infra)
+  repo, which provisions RDS + an EC2 client + the SQS queue.
 
 ### Changed
 

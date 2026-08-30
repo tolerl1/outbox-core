@@ -20,7 +20,7 @@ import os
 import re
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
 
@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from outbox import OutboundMessage, Relay, RelayConfig, RetryPolicy
+from outbox import MessageProvider, OutboundMessage, Relay, RelayConfig, RetryPolicy
 from outbox.schemas import outbox_message
 
 _MIGRATION_SQL_PATH = (
@@ -75,6 +75,57 @@ class _LatencyProvider:
         del message
         if self.latency_seconds > 0:
             await asyncio.sleep(self.latency_seconds)
+
+
+@dataclass(slots=True)
+class _SqsProvider:
+    """MessageProvider that sends to a real SQS queue via boto3.
+
+    boto3 is synchronous, so send() offloads each call to a thread rather
+    than blocking the event loop — a real async SQS-backed provider would do
+    the same via its own thread pool or an async SDK. Requires `boto3`
+    (`uv sync --group bench`); imported lazily so `--provider latency` (the
+    default) never needs it installed.
+
+    Attributes:
+        queue_url (str): the SQS queue to send benchmark messages to
+    """
+
+    queue_url: str
+    _client: object = field(init=False, repr=False, default=None)
+
+    def __post_init__(self) -> None:
+        """Build the boto3 SQS client, raising a clear error if boto3 is missing.
+
+        Raises:
+            RuntimeError: if boto3 isn't installed
+        """
+        try:
+            import boto3
+        except ImportError as error:
+            raise RuntimeError(
+                "boto3 is required for --provider sqs: uv sync --group bench"
+            ) from error
+        self._client = boto3.client("sqs")
+
+    async def send(self, message: OutboundMessage) -> None:
+        """Send a message to SQS, decoding the payload as UTF-8 text.
+
+        The benchmark's own seeded payload is always UTF-8 JSON, so a plain
+        text body is sufficient here — a provider for arbitrary binary
+        payloads would need to base64-encode instead.
+
+        Args:
+            message (OutboundMessage): the message to send
+
+        Raises:
+            botocore.exceptions.ClientError: on any SQS-side failure
+        """
+        await asyncio.to_thread(
+            self._client.send_message,
+            QueueUrl=self.queue_url,
+            MessageBody=message.payload.decode("utf-8"),
+        )
 
 
 def _as_asyncpg_url(url: str) -> str:
@@ -131,23 +182,24 @@ async def _seed(engine: AsyncEngine, rows: int) -> None:
 async def _drain(
     session_factory: async_sessionmaker[AsyncSession],
     config: RelayConfig,
-    latency_seconds: float,
+    provider: MessageProvider,
 ) -> tuple[float, int]:
     """Run poll_once() until the backlog is empty.
 
     Args:
         session_factory (async_sessionmaker[AsyncSession]): session factory for the Relay
         config (RelayConfig): relay configuration under test
-        latency_seconds (float): simulated per-message provider latency
+        provider (MessageProvider): provider under test, shared across the whole matrix
 
     Returns:
         tuple[float, int]: wall-clock seconds elapsed and messages delivered
 
     Raises:
-        RuntimeError: if the simulated provider ever fails or dead-letters a
-            message — it never raises, so this indicates a benchmark bug
+        RuntimeError: if any message fails or dead-letters — max_attempts is
+            1, so a single real send failure means the provider (or its
+            credentials/network reachability) needs checking, not a retry
     """
-    relay = Relay(session_factory, _LatencyProvider(latency_seconds), config)
+    relay = Relay(session_factory, provider, config)
     delivered = 0
     start = time.perf_counter()
     while True:
@@ -155,8 +207,8 @@ async def _drain(
         delivered += result.delivered
         if result.failed or result.dead_lettered:
             raise RuntimeError(
-                f"unexpected failure/dead-letter during benchmark: {result!r} "
-                "(the simulated provider never raises — check for a bug)"
+                f"send failure during benchmark: {result!r} — check the provider's "
+                "reachability/credentials (max_attempts=1, so this isn't a transient retry)"
             )
         if result.claimed == 0:
             break
@@ -169,7 +221,7 @@ async def _run_matrix(
     rows: int,
     batch_sizes: list[int],
     concurrencies: list[int],
-    latency_ms: float,
+    provider: MessageProvider,
 ) -> list[tuple[int, int, int, float, float]]:
     """Run the full (batch_size x dispatch_concurrency) matrix.
 
@@ -178,7 +230,9 @@ async def _run_matrix(
         rows (int): pending rows to seed before each run
         batch_sizes (list[int]): batch_size values to test
         concurrencies (list[int]): dispatch_concurrency values to test
-        latency_ms (float): simulated provider latency in milliseconds
+        provider (MessageProvider): provider under test, built once and
+            reused across every combination (matches how a real Relay uses
+            one long-lived provider instance rather than one per cycle)
 
     Returns:
         list[tuple[int, int, int, float, float]]: rows of
@@ -191,7 +245,6 @@ async def _run_matrix(
     pool_size = max(concurrencies) + 2
     engine = create_async_engine(database_url, pool_size=pool_size, max_overflow=0)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
-    latency_seconds = latency_ms / 1000
 
     results: list[tuple[int, int, int, float, float]] = []
     try:
@@ -210,7 +263,7 @@ async def _run_matrix(
                     lease_duration=timedelta(seconds=60),
                     dispatch_concurrency=concurrency,
                 )
-                elapsed, delivered = await _drain(session_factory, config, latency_seconds)
+                elapsed, delivered = await _drain(session_factory, config, provider)
                 rate = delivered / elapsed if elapsed > 0 else float("inf")
                 results.append((batch_size, concurrency, delivered, elapsed, rate))
     finally:
@@ -287,9 +340,42 @@ def _parse_args() -> argparse.Namespace:
         "--send-latency-ms",
         type=float,
         default=0.0,
-        help="simulated provider send latency in milliseconds (default: 0)",
+        help="simulated provider send latency in milliseconds; ignored for "
+        "--provider sqs (default: 0)",
+    )
+    parser.add_argument(
+        "--provider",
+        choices=["latency", "sqs"],
+        default="latency",
+        help="provider to benchmark: 'latency' (default) simulates a transport "
+        "with --send-latency-ms; 'sqs' sends real messages to --sqs-queue-url",
+    )
+    parser.add_argument(
+        "--sqs-queue-url",
+        default=None,
+        help="required when --provider sqs; the queue to send benchmark messages to",
     )
     return parser.parse_args()
+
+
+def _build_provider(args: argparse.Namespace) -> MessageProvider:
+    """Build the MessageProvider selected by --provider.
+
+    Args:
+        args (argparse.Namespace): parsed arguments
+
+    Returns:
+        MessageProvider: the provider to benchmark
+
+    Raises:
+        SystemExit: if --provider sqs is chosen without --sqs-queue-url
+    """
+    if args.provider == "sqs":
+        if not args.sqs_queue_url:
+            print("--sqs-queue-url is required when --provider sqs", file=sys.stderr)
+            raise SystemExit(1)
+        return _SqsProvider(args.sqs_queue_url)
+    return _LatencyProvider(args.send_latency_ms / 1000)
 
 
 def main() -> None:
@@ -301,9 +387,10 @@ def main() -> None:
         print(_MISSING_DATABASE_URL, file=sys.stderr)
         raise SystemExit(1)
 
+    provider = _build_provider(args)
     print(
-        f"rows={args.rows} batch_sizes={args.batch_sizes} "
-        f"concurrency={args.concurrency} send_latency_ms={args.send_latency_ms}\n"
+        f"rows={args.rows} batch_sizes={args.batch_sizes} concurrency={args.concurrency} "
+        f"provider={args.provider} send_latency_ms={args.send_latency_ms}\n"
     )
     results = asyncio.run(
         _run_matrix(
@@ -311,7 +398,7 @@ def main() -> None:
             args.rows,
             args.batch_sizes,
             args.concurrency,
-            args.send_latency_ms,
+            provider,
         )
     )
     _print_results(results)

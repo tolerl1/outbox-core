@@ -39,10 +39,23 @@ uv run python benchmarks/benchmark.py \
   `send()`, standing in for a transport round-trip. `0` (the default)
   measures the relay's own DB-bound ceiling with no transport in the way;
   a nonzero value shows how raising `dispatch_concurrency` overlaps that
-  latency instead of serializing behind it.
+  latency instead of serializing behind it. Ignored when `--provider sqs`.
+- `--provider {latency,sqs}`: which `MessageProvider` to benchmark against.
+  `latency` (the default) is the simulated sleep above. `sqs` sends real
+  messages to an SQS queue via `boto3` — needs `uv sync --group bench`,
+  `--sqs-queue-url`, and AWS credentials/region available in the
+  environment (ambient config, or auto-detected instance metadata when run
+  from an EC2 instance). This is the fix for the biggest gap in "what it
+  doesn't measure" below: a real transport instead of a sleep.
+- `--sqs-queue-url`: required when `--provider sqs`; the queue to send to.
 
 Output is a plain-text table: `batch_size`, `concurrency`, `delivered`,
 wall-clock `seconds`, and `msgs/sec` for each combination.
+
+For a fully realistic run against `--provider sqs` — RDS Postgres, an
+in-VPC EC2 client, and a real SQS queue, all provisioned for you — see the
+companion [outbox-core-bench-infra](https://github.com/tolerl1/outbox-core-bench-infra)
+repo.
 
 ## What it measures — and what it doesn't
 
@@ -56,9 +69,10 @@ ceiling to report on.
 
 It does **not** measure:
 
-- **A real transport.** `--send-latency-ms` is a sleep, not a network call,
-  a broker's own throttling, or serialization cost. Swap in your actual
-  `MessageProvider` if you want a number that includes it.
+- **A real transport, unless you ask for one.** `--send-latency-ms` (the
+  default provider) is a sleep, not a network call, a broker's own
+  throttling, or serialization cost. Use `--provider sqs` for a real one,
+  or point the script at your own `MessageProvider` for anything else.
 - **Multiple relay workers.** This script runs one `Relay` in one process.
   Horizontal scaling (more worker processes against the same table via
   `SKIP LOCKED` — see [Operations](operations.md#deployment-and-shutdown))

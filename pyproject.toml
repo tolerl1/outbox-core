@@ -52,6 +52,9 @@ build-backend = "uv_build"
 module-name = "outbox"
 
 [dependency-groups]
+bench = [
+    "boto3>=1.43.83",
+]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.26",
