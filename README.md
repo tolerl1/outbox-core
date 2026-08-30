@@ -2,7 +2,7 @@
 
 A broker-agnostic transactional outbox for SQLAlchemy (async) + Postgres.
 
-**[📖 Full Documentation](https://tolerl1.github.io/outbox-core/)**
+**[Full Documentation](https://tolerl1.github.io/outbox-core/)**
 
 A DB commit followed by a *separate* publish call to a queue/webhook/SDK has a gap: if the process crashes between the commit and the publish, the data is persisted but the event is never delivered. The transactional outbox pattern closes that gap by making the outbox row part of the same atomic write as the domain data.
 
