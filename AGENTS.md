@@ -55,6 +55,7 @@ weaken them:
 | `src/outbox/.agents/skills/` | Consumer-facing Claude Code skills, bundled into the published package (shipped artifacts, not contributor docs) |
 | `docs/` + `zensical.toml` | The docs site ([Zensical](https://zensical.org)); deployed to GitHub Pages by `.github/workflows/docs.yml` |
 | `specs/` | Design specs for non-trivial changes — see `specs/README.md` for when one is required |
+| `benchmarks/` | Standalone throughput microbenchmark (`benchmark.py`), not part of CI or the test suite — see `docs/benchmarks.md` |
 
 ## Commands
 
@@ -76,6 +77,13 @@ CI runs all three); nothing is spun up for you:
 docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=outbox postgres:18
 export OUTBOX_TEST_DATABASE_URL=postgresql://postgres:outbox@localhost:5432/postgres
 uv run pytest -m integration
+```
+
+The same database is reused for the throughput microbenchmark, which is
+just as destructive to it (see `docs/benchmarks.md`):
+
+```bash
+uv run python benchmarks/benchmark.py
 ```
 
 Run all four checks (ruff check, ruff format, pyright, pytest) before

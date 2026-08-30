@@ -9,6 +9,13 @@ as a breaking change while the public API and schema are still moving.
 
 ## [Unreleased]
 
+### Added
+
+- `benchmarks/benchmark.py` — a standalone throughput microbenchmark
+  sweeping `RelayConfig.batch_size` / `dispatch_concurrency` combinations
+  against a real Postgres, with methodology and hardware-variance caveats
+  in `docs/benchmarks.md`. Not part of the test suite or CI.
+
 ### Changed
 
 - Bumped the `sqlalchemy[asyncio]` requirement from `>=2.0` to `>=2.0.51`.

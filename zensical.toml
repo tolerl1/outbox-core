@@ -19,6 +19,7 @@ nav = [
   { "API Reference" = "reference.md" },
   { "Schema" = "schema.md" },
   { "Operations" = "operations.md" },
+  { "Benchmarks" = "benchmarks.md" },
   { "Versioning" = "versioning.md" },
   { "Contributing" = "contributing.md" },
 ]
