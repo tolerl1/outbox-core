@@ -21,7 +21,7 @@ an existing one.
 Things that are known, documented behavior rather than vulnerabilities:
 
 - `last_error` stores provider exception text verbatim for the retention
-  window — the README documents that providers should sanitize what they
+  window - the README documents that providers should sanitize what they
   raise and that the column should be treated as sensitive.
 - The library executes no user-supplied SQL and interpolates no caller data
   into SQL text (bind parameters only); reports demonstrating otherwise are

@@ -19,13 +19,13 @@
 
 <!-- The shape of the change: new/changed functions, config, SQL, control
      flow. Sketch code or SQL where it clarifies. Keep it at the level a
-     reviewer needs to say yes/no — not implementation-complete. -->
+     reviewer needs to say yes/no - not implementation-complete. -->
 
 ### Public API impact
 
 <!-- New/changed/removed exports in outbox/__init__.py, config fields,
      dataclass fields. State the version bump per VERSIONING.md.
-     MessageProvider shape changes are always breaking — say so explicitly. -->
+     MessageProvider shape changes are always breaking - say so explicitly. -->
 
 ### Schema impact
 
@@ -38,14 +38,14 @@
 <!-- How the change interacts with: at-least-once delivery, the no-ordering
      contract, claim-time attempts increment, outcome fencing (see
      outcomes.py::_fenced ABA note), lease sizing, transaction ownership
-     (enqueue never commits). "Unaffected" is a fine answer — but claim it
+     (enqueue never commits). "Unaffected" is a fine answer - but claim it
      explicitly per invariant you touch, so review can check it. -->
 
 ## Failure modes
 
 <!-- What happens when a worker dies, the DB blips, or the transport is down
      mid-change? What does a partially-applied state look like and who
-     recovers it? This section is why the spec exists — spend the time here. -->
+     recovers it? This section is why the spec exists - spend the time here. -->
 
 ## Alternatives considered
 
@@ -54,7 +54,7 @@
 ## Test plan
 
 <!-- Which behaviors get unit tests vs integration tests (real Postgres).
-     Concurrency claims need concurrency tests — name the scenario. -->
+     Concurrency claims need concurrency tests - name the scenario. -->
 
 ## Docs impact
 
