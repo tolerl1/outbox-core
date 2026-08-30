@@ -76,9 +76,14 @@ It does **not** measure:
 These are real output from this script, not illustrative placeholders —
 but they're included only to show the table's shape and what the
 `dispatch_concurrency` effect looks like, not as a number to compare
-yourself against. See the next section for why. Environment: a single-node
-Postgres 16 on the machine that wrote this doc, no containerization, no
-concurrent load, one relay process.
+yourself against. See the next section for why. Environment: a stock,
+untuned `apt`-installed Postgres 16 (`shared_buffers = 128MB`, default
+`max_connections`, no tuning pass) on a shared 4-vCPU cloud sandbox VM with
+a virtio block device of unknown backing storage — not the `postgres:18`
+Docker container these docs otherwise recommend, not dedicated hardware,
+and not a production-shaped host. Single trial per configuration, no
+warm-up run, no concurrent load, one relay process, table emptied and
+reseeded before each configuration.
 
 `uv run python benchmarks/benchmark.py` (defaults: 5000 rows,
 `--send-latency-ms 0` — no simulated transport, so this is the relay's own
