@@ -11,7 +11,7 @@
 - [ ] `uv run ruff check .` and `uv run ruff format --check .`
 - [ ] `uv run pyright`
 - [ ] `uv run pytest` (unit)
-- [ ] `uv run pytest -m integration` against a real Postgres — **required** if
+- [ ] `uv run pytest -m integration` against a real Postgres - **required** if
       this PR touches `src/outbox/schemas.py`, `src/outbox/migrations/`, or
       `src/outbox/relay/`; write "n/a" otherwise
 

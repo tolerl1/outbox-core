@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 The contributor guide for this repository lives in `AGENTS.md` (imported
-below) — repo map, commands, invariants, style, versioning rules, and the
+below) - repo map, commands, invariants, style, versioning rules, and the
 list of docs that must stay in sync with code changes.
 
 @AGENTS.md

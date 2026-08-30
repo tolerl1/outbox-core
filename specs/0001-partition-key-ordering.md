@@ -8,7 +8,7 @@
 ## Problem
 
 The core "no ordering guarantee" contract (AGENTS.md) is correct as a default
-and should stay the default. But `partition_key` already exists end-to-end —
+and should stay the default. But `partition_key` already exists end-to-end -
 `OutboxMessage`, `OutboundMessage`, `ClaimedMessage`, the schema column, and
 the claim query's `RETURNING` clause all carry it, and its docstring already
 says "optional key for sharding or ordering." Today that's aspirational: the
@@ -19,7 +19,7 @@ and retries can be delivered after a same-key message enqueued later.
 
 This matters because brokers with native per-key ordering (SQS FIFO message
 groups, Kafka partition keys, Service Bus sessions) only preserve whatever
-order they *receive* messages in — they cannot fix messages that already
+order they *receive* messages in - they cannot fix messages that already
 arrived out of order. That half of the problem is producer-side, and the
 relay is the only thing common to every provider that's in a position to
 enforce it. Callers who need relative ordering between messages for the same
@@ -36,19 +36,19 @@ Goals:
   in the relative order they were enqueued (by `id`).
 - Zero behavior/cost change for the default case: `partition_key = NULL`.
 - Holds across any number of concurrent `Relay` workers/processes without a
-  new coordination primitive — enforced through existing row status under
+  new coordination primitive - enforced through existing row status under
   ordinary MVCC semantics, not advisory locks or an external lock service.
 
 Non-goals:
 
 - Global ordering across different keys, or between keyed and unkeyed
-  messages — still explicitly not guaranteed.
+  messages - still explicitly not guaranteed.
 - Retroactively fixing order after a manual dead-letter requeue re-enters an
-  old message behind newer same-key messages that already delivered — a
+  old message behind newer same-key messages that already delivered - a
   known limitation (see Failure modes), not solved here.
-- Any `MessageProvider` protocol change — providers already receive
+- Any `MessageProvider` protocol change - providers already receive
   `partition_key` on `OutboundMessage` today.
-- Broker-side ordering mechanics (Kafka partitioning, SQS FIFO groups) —
+- Broker-side ordering mechanics (Kafka partitioning, SQS FIFO groups) -
   provider's job, unaffected by this change.
 
 ## Design
@@ -83,7 +83,7 @@ Why this needs no new locking:
 
 - **Within one claim statement (one batch)**: if A (`id=1`) and B (`id=2`)
   share a key, B's `NOT EXISTS` check reads A's status as of the statement's
-  snapshot — still `'pending'`, since the CTE's row set is fully determined
+  snapshot - still `'pending'`, since the CTE's row set is fully determined
   before the `UPDATE` touches anything. B is excluded from that batch
   whether or not A itself gets selected in it.
 - **Across concurrent `claim_batch()` calls**: B only becomes visible to the
@@ -94,7 +94,7 @@ Why this needs no new locking:
   lock or application coordination needed.
 
 Intentional consequence: a stuck or slow-retrying message head-of-line-blocks
-every later message sharing its key — the same way a slow SQS FIFO consumer
+every later message sharing its key - the same way a slow SQS FIFO consumer
 blocks its message group, or a stuck Kafka consumer blocks its partition.
 Documented as expected behavior, not a bug (see Failure modes).
 
@@ -110,7 +110,7 @@ the per-key carve-out spelled out precisely.
 
 ### Schema impact
 
-No new column — `partition_key` already exists (`schemas.py`,
+No new column - `partition_key` already exists (`schemas.py`,
 `0001_initial.sql`). One new index to support the `NOT EXISTS` lookup:
 
 ```sql
@@ -123,40 +123,40 @@ This goes directly into `0001_initial.sql` + `schemas.py` rather than a new
 
 ### Contracts and invariants
 
-- **At-least-once delivery**: unaffected — this only restricts which pending
+- **At-least-once delivery**: unaffected - this only restricts which pending
   row a claim is willing to pick up, not claim/lease/retry mechanics.
 - **No-ordering contract**: narrowed, not broken. AGENTS.md's contract #2
   becomes "no ordering guarantee across different or absent partition keys;
   messages sharing a partition key are delivered in relative order." This is
   a real contract change and should be reviewed as one.
-- **`attempts` increments at claim time only**: unaffected — the new
+- **`attempts` increments at claim time only**: unaffected - the new
   predicate only gates which rows enter the claiming CTE; the `UPDATE`'s
   column list is untouched.
-- **Outcome fencing**: unaffected — outcome writers are unchanged.
-- **Poison-message guard / dead-letter worker_id retention**: unaffected —
+- **Outcome fencing**: unaffected - outcome writers are unchanged.
+- **Poison-message guard / dead-letter worker_id retention**: unaffected -
   same claim/lease/reclaim machinery once a row is claimed.
 - **Lease reclaim**: `reclaim_expired_leases` moves an abandoned `claimed`
   row back to `pending` (or dead-letters it if exhausted) without looking at
-  `partition_key`; no change needed there — a reclaimed row simply re-enters
+  `partition_key`; no change needed there - a reclaimed row simply re-enters
   the same blocking predicate on the next claim cycle.
 
 ## Failure modes
 
 - **A poison message with a key blocks the rest of its key's queue** for its
   full retry backoff schedule, until it exhausts `max_attempts` and
-  dead-letters (terminal, unblocks). Intentional — mirrors SQS FIFO / Kafka
-  partition behavior — but it's a new operational failure mode: today one
+  dead-letters (terminal, unblocks). Intentional - mirrors SQS FIFO / Kafka
+  partition behavior - but it's a new operational failure mode: today one
   bad message only delays itself, not everything sharing its key. Needs
   prominent documentation (README / `docs/operations.md`).
 - **Dead-letter requeue does not restore order.** If A (older, keyed)
   dead-letters while B (newer, same key) is already claimed and delivered
   (A's terminal status stopped blocking B), and someone later manually
   resets A to `pending` via the README's documented requeue query, A
-  delivers *after* B already went out. Nothing can retroactively fix this —
+  delivers *after* B already went out. Nothing can retroactively fix this -
   document as a known limitation.
 - **Lease-expiry reclaim can delay unblocking longer than a retry backoff
   would.** A worker dying mid-send holding a keyed claim blocks that key
-  until `lease_duration` elapses and `reclaim_expired_leases` notices —
+  until `lease_duration` elapses and `reclaim_expired_leases` notices -
   potentially longer than an ordinary failure's backoff. Worth flagging as a
   reason to keep lease durations conservative under keyed ordering.
 - **`dispatch_concurrency` stops bounding true parallelism for keyed
@@ -171,7 +171,7 @@ This goes directly into `0001_initial.sql` + `schemas.py` rather than a new
   of the in-flight send. Rejected: requires holding a dedicated DB
   connection open per in-flight key across an async network call to the
   broker, fighting the short-transaction style the rest of the relay uses
-  (claim and outcome writes are separate, quick transactions today) — and it
+  (claim and outcome writes are separate, quick transactions today) - and it
   doesn't handle the retry-reordering case any better than the status-based
   approach, so it adds real complexity for no extra guarantee.
 - **CDC-based single-threaded relay (Debezium-style)**, sidestepping
@@ -182,7 +182,7 @@ This goes directly into `0001_initial.sql` + `schemas.py` rather than a new
 - **In-process lock/semaphore per key inside `Relay`.** Rejected: doesn't
   hold across multiple `Relay` instances/processes, which is the normal
   deployment shape this library already supports (concurrent workers with
-  distinct `worker_id`s) — would silently stop working past one process.
+  distinct `worker_id`s) - would silently stop working past one process.
 
 ## Test plan
 
@@ -204,36 +204,36 @@ Integration (real Postgres, `tests/integration/`, marked `integration`):
 - Different keys never block each other (two distinct keys, both due, both
   claimed in the same batch).
 - Lease-expiry path: older message's lease expires and is reclaimed to
-  `pending` (not dead-lettered) — younger stays blocked until the reclaimed
+  `pending` (not dead-lettered) - younger stays blocked until the reclaimed
   message eventually resolves.
 - Concurrency claim: N concurrent `claim_batch()` callers against a batch
-  containing several same-key messages — assert at most one same-key message
+  containing several same-key messages - assert at most one same-key message
   is ever in `claimed` status at a time across all callers.
 
 ## Docs impact
 
-- `AGENTS.md` — contract #2 needs the per-key carve-out stated precisely;
+- `AGENTS.md` - contract #2 needs the per-key carve-out stated precisely;
   highest-risk doc to leave stale since it's what review checks changes
   against.
-- `README.md` — the "no ordering guarantee" line, the `partition_key`
+- `README.md` - the "no ordering guarantee" line, the `partition_key`
   mention, and the batch note ("no ordering is guaranteed either way") all
   need the carve-out.
-- `docs/delivering.md` — needs a section on per-key ordering and its
+- `docs/delivering.md` - needs a section on per-key ordering and its
   head-of-line-blocking failure modes.
-- `docs/schema.md` — document the new index.
-- `docs/reference.md` — `partition_key` field descriptions on
+- `docs/schema.md` - document the new index.
+- `docs/reference.md` - `partition_key` field descriptions on
   `OutboxMessage`/`OutboundMessage`, and `claim_batch`'s docstring if quoted.
-- `CHANGELOG.md` — `[Unreleased]` entry.
-- `skills/outbox-integrate` — check whether it currently describes
+- `CHANGELOG.md` - `[Unreleased]` entry.
+- `skills/outbox-integrate` - check whether it currently describes
   `partition_key` as inert; correct if so.
-- `skills/outbox-review` — update if it has a "no ordering" checklist item.
+- `skills/outbox-review` - update if it has a "no ordering" checklist item.
 
 ## Open questions
 
 - Should the key be scoped per-topic (same `partition_key` in different
   topics doesn't block) or global as designed above? Leaning global for
-  simplicity — the caller chose the string to mean "these belong together,"
-  full stop — unless a concrete use case argues for per-topic scoping.
+  simplicity - the caller chose the string to mean "these belong together,"
+  full stop - unless a concrete use case argues for per-topic scoping.
 - Worth a metric/log line distinguishing "claim was blocked by an earlier
   unresolved same-key message" from ordinary claim starvation, so operators
   can debug the new failure mode? Not required for a first cut; revisit once

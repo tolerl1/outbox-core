@@ -1,6 +1,6 @@
 # API Reference
 
-This page is maintained by hand against `src/outbox/` — Zensical has no
+This page is maintained by hand against `src/outbox/` - Zensical has no
 docstring-extraction plugin yet. If anything here disagrees with the
 docstrings in the source, the source is canonical.
 
@@ -8,7 +8,7 @@ Scope: every symbol exported from the root `outbox` package (`outbox.__all__`,
 enforced by `tests/test_public_api.py`), grouped the way `src/outbox/__init__.py`
 groups them, plus the `outbox.migrations` entry points documented in the
 README. Internal helpers (`outbox.relay.claim`, `outbox.relay.outcomes`,
-`outbox.relay._sql`) are not covered — see [Versioning](versioning.md) for
+`outbox.relay._sql`) are not covered - see [Versioning](versioning.md) for
 what "public" means here.
 
 ## Writer
@@ -22,7 +22,7 @@ class OutboxWriter:
 
 Enqueue messages into the transactional outbox. Inserts one outbox row per
 call into the caller's existing transaction. Never manages the transaction
-itself — the caller's session must already be inside one.
+itself - the caller's session must already be inside one.
 
 **`__init__`**
 
@@ -41,14 +41,14 @@ Serializes dict payloads to JSON with `application/json` content-type;
 passes bytes payloads as-is. Rejects dict payloads containing non-finite
 floats (NaN/Infinity) at enqueue time rather than persisting invalid JSON.
 
-`enqueue()` never manages a transaction — it inserts into the caller's
+`enqueue()` never manages a transaction - it inserts into the caller's
 session and returns; commit is the caller's job.
 
 - **Args**
     - `session` (`AsyncSession`): the async database session inside a transaction.
     - `message` (`OutboxMessage`): the message to enqueue.
-- **Returns**: `int` — the ID of the inserted outbox row.
-- **Raises**: `ValueError` — if a dict payload contains NaN or Infinity.
+- **Returns**: `int` - the ID of the inserted outbox row.
+- **Raises**: `ValueError` - if a dict payload contains NaN or Infinity.
 
 ## Message types
 
@@ -74,7 +74,7 @@ Represents a message a caller enqueues for later delivery.
 - `partition_key` (`str | None`, default `None`): optional key for sharding,
   or for ordering: messages sharing a non-null `partition_key` are never
   claimed concurrently and are claimed oldest-`id`-first among that key's
-  committed pending rows — matching enqueue order for the common case of
+  committed pending rows - matching enqueue order for the common case of
   non-overlapping same-key writes, see
   [Delivering](delivering.md#per-key-ordering) for the precise guarantee
   under concurrent same-key writers; a `None` `partition_key` carries no
@@ -215,7 +215,7 @@ Reclaims expired leases, claims a batch of pending messages, and dispatches
 them concurrently to the provider, handling outcomes (deliver, retry,
 dead-letter) for each one.
 
-- **Returns**: `RelayCycleResult` — counts and timing for the cycle.
+- **Returns**: `RelayCycleResult` - counts and timing for the cycle.
 
 #### `run_forever`
 
@@ -242,7 +242,7 @@ class RelayConfig(BaseModel):
 
 Configures relay polling, batching, concurrency, and backoff. A pydantic
 `BaseModel` with `model_config = ConfigDict(frozen=True,
-arbitrary_types_allowed=True)` — all fields are immutable after construction.
+arbitrary_types_allowed=True)` - all fields are immutable after construction.
 The validated settings object consumers assemble from environment variables
 or config files.
 
@@ -259,7 +259,7 @@ or config files.
 - `lease_duration` (`timedelta`, default `timedelta(seconds=30)`): duration a
   worker holds a claimed message; clock starts at claim time for the whole
   batch; size against `batch_size / dispatch_concurrency × p99 send latency`
-  with headroom — expiry mid-dispatch causes tail messages to be reclaimed by
+  with headroom - expiry mid-dispatch causes tail messages to be reclaimed by
   other workers and redelivered, burning attempts without real failure.
 - `dispatch_concurrency` (`int`, default `1`): maximum number of claimed
   messages delivered to the provider concurrently per poll cycle; `1`
@@ -272,14 +272,14 @@ or config files.
 
 **Validation rules**:
 
-- `topics` must be `None` (claim all topics) or a non-empty list — an empty
+- `topics` must be `None` (claim all topics) or a non-empty list - an empty
   list raises `ValueError`.
-- `poll_interval` must be positive (`> timedelta(0)`) — otherwise raises
+- `poll_interval` must be positive (`> timedelta(0)`) - otherwise raises
   `ValueError`.
-- `batch_size` must be positive (`> 0`) — otherwise raises `ValueError`.
-- `dispatch_concurrency` must be `>= 1` — otherwise raises `ValueError`.
+- `batch_size` must be positive (`> 0`) - otherwise raises `ValueError`.
+- `dispatch_concurrency` must be `>= 1` - otherwise raises `ValueError`.
 - `lease_duration` must be strictly greater than `poll_interval` (model-level
-  validator, runs after field validation) — otherwise raises `ValueError`.
+  validator, runs after field validation) - otherwise raises `ValueError`.
 
 ### `outbox.RetryPolicy`
 
@@ -323,7 +323,7 @@ Computes the delay before retry number `attempt`.
     - `attempt` (`int`): 1-indexed retry attempt number.
     - `rand` (`Callable[[], float]`, default `random.random`): random source
       for full jitter; injectable for testing.
-- **Returns**: `timedelta` — exponential backoff capped at `max_backoff`,
+- **Returns**: `timedelta` - exponential backoff capped at `max_backoff`,
   scaled by `rand()` when `jitter` is enabled.
 
 #### `should_dead_letter`
@@ -335,7 +335,7 @@ def should_dead_letter(self, *, attempts: int) -> bool
 Checks whether a message should be dead-lettered.
 
 - **Args**: `attempts` (`int`): number of times the message has been claimed.
-- **Returns**: `bool` — `True` if `attempts >= max_attempts`, `False` otherwise.
+- **Returns**: `bool` - `True` if `attempts >= max_attempts`, `False` otherwise.
 
 ## Providers
 
@@ -347,14 +347,14 @@ class MessageProvider(Protocol):
     async def send(self, message: OutboundMessage) -> None: ...
 ```
 
-`MessageProvider` is a `typing.Protocol` (decorated `@runtime_checkable`) —
+`MessageProvider` is a `typing.Protocol` (decorated `@runtime_checkable`) -
 there is nothing to subclass, only a shape to match. Any change to this
 protocol's shape is a breaking release, no exceptions, per
-[Versioning](versioning.md) — every downstream provider implements it.
+[Versioning](versioning.md) - every downstream provider implements it.
 
 Implementations send a single message to their underlying transport. The
 `Relay` owns retry/backoff/dead-lettering logic, so `send()` must be a
-**single attempt** that raises on failure — do not implement retry loops or
+**single attempt** that raises on failure - do not implement retry loops or
 swallow transport exceptions in the provider.
 
 #### `send`
@@ -367,9 +367,9 @@ Sends a message to the transport.
 
 - **Args**: `message` (`OutboundMessage`): the message to deliver.
 - **Raises**:
-    - `outbox.errors.PayloadTooLargeError` — if the payload exceeds what the
+    - `outbox.errors.PayloadTooLargeError` - if the payload exceeds what the
       transport can carry.
-    - `Exception` — any transport-specific failure; the Relay will retry or
+    - `Exception` - any transport-specific failure; the Relay will retry or
       dead-letter based on its retry policy.
 
 ### `outbox.InMemoryProvider`
@@ -434,10 +434,10 @@ def ddl() -> str
 Returns the full schema DDL for the current migration.
 
 Reads the shipped SQL file via `importlib.resources`, so this works from a
-pip install too — not just a source checkout where
+pip install too - not just a source checkout where
 `src/outbox/migrations/sql/` is on disk relative to the repo root.
 
-- **Returns**: `str` — the contents of the current migration's SQL file.
+- **Returns**: `str` - the contents of the current migration's SQL file.
 
 ### `python -m outbox.migrations`
 
@@ -452,6 +452,6 @@ python -m outbox.migrations | psql "$DATABASE_URL"
 ## Internal, not covered by versioning
 
 `outbox.relay.claim`, `outbox.relay.outcomes`, and `outbox.relay._sql` are
-internal implementation modules — the claim query, fenced outcome writers,
+internal implementation modules - the claim query, fenced outcome writers,
 and shared SQL helpers. They're not exported from the root package, aren't
 covered by [Versioning](versioning.md), and can change shape without notice.

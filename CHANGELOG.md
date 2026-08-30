@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 This project follows [Semantic Versioning](https://semver.org/) with
-`0.x`-specific rules — see [VERSIONING.md](./VERSIONING.md) for what counts
+`0.x`-specific rules - see [VERSIONING.md](./VERSIONING.md) for what counts
 as a breaking change while the public API and schema are still moving.
 
 ## [Unreleased]
@@ -27,9 +27,9 @@ as a breaking change while the public API and schema are still moving.
 ### Added
 
 - Initial release of `outbox-core`.
-- `OutboxWriter.enqueue()` — inserts an outbox row into the caller's own
+- `OutboxWriter.enqueue()` - inserts an outbox row into the caller's own
   transaction; never manages the transaction itself.
-- `Relay` — polls, claims (`FOR UPDATE SKIP LOCKED` + leases), and dispatches
+- `Relay` - polls, claims (`FOR UPDATE SKIP LOCKED` + leases), and dispatches
   outbox rows to a pluggable `MessageProvider`, with retry/backoff and
   dead-lettering via `RetryPolicy`.
 - At-least-once delivery, with per-`partition_key` ordering: messages
