@@ -9,6 +9,13 @@ as a breaking change while the public API and schema are still moving.
 
 ## [Unreleased]
 
+### Added
+
+- Documented an optional `(updated_at) WHERE status IN ('delivered',
+  'dead_letter')` index for deployments whose purge job is slow at scale,
+  with the write-cost trade-off and cadence guidance for when it's worth
+  adding (`docs/operations.md`).
+
 ### Changed
 
 - Bumped the `sqlalchemy[asyncio]` requirement from `>=2.0` to `>=2.0.51`.

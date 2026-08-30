@@ -23,6 +23,53 @@ window. Transport SDK errors sometimes embed URLs, tokens, or response
 bodies — if yours do, sanitize what your provider raises, and treat the
 column as sensitive in dashboards and log shipping.
 
+## Purging at scale: an optional index
+
+The purge query above has no dedicated index behind it: none of the three
+shipped indexes (see [Schema](schema.md#what-ships)) cover `delivered`/
+`dead_letter` rows — `ix_outbox_pending` is explicitly scoped to
+`WHERE status = 'pending'` and is a no-op for anything else. That's
+deliberate, not an oversight: this index isn't shipped by default because
+its cost is paid on every write, not on the occasional purge run.
+
+If your purge job is slow, or your retained backlog runs into the millions
+of rows, add:
+
+```sql
+CREATE INDEX ix_outbox_purge ON outbox_message (updated_at)
+    WHERE status IN ('delivered', 'dead_letter');
+```
+
+This indexes `updated_at` rather than the purge query's
+`COALESCE(delivered_at, updated_at)` on purpose: `mark_delivered` sets
+`delivered_at` and `updated_at` to the same transaction timestamp, and a
+dead-lettered row never sets `delivered_at` at all — so for a terminal row
+(one that, per the invariants, is never written to again) `updated_at`
+alone already carries the value the purge query needs. A plain index can
+satisfy an exact column reference but not a `COALESCE(...)` expression, so
+simplify the query to match once you add this index:
+
+```sql
+DELETE FROM outbox_message
+WHERE status IN ('delivered', 'dead_letter')
+  AND updated_at < now() - interval '7 days';
+```
+
+Whether this is worth adding at all depends entirely on your purge cadence
+and table size, which the library has no visibility into:
+
+- **Purging rarely** (daily/weekly) on a modest retained backlog: an
+  unindexed scan is a bounded, predictable, off-peak cost — skip the index
+  until that scan is measurably slow or growing.
+- **Purging often** (hourly or tighter), or a retained backlog in the
+  millions of rows: the index earns back its write-side cost quickly.
+
+The trade-off is the same one every index makes: `delivered`/`dead_letter`
+is the single most common transition a row makes in this table, so this
+index would be maintained on every successful delivery and every
+dead-letter, forever — to speed up a job that runs on your own schedule,
+not the hot claim path. Measure your own purge query before adding it.
+
 ## Recovering dead-lettered rows
 
 A `dead_letter` row is parked, not gone — the payload is still intact, so
