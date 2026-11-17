@@ -51,7 +51,7 @@ If the transport has a hard message-size limit (Azure Storage Queue: ~64KB
 base64-encoded; SQS: 256KB; etc.), check `len(message.payload)` and raise
 `outbox.errors.PayloadTooLargeError` rather than silently truncating,
 compressing without the consumer's knowledge, or dropping the message. There
-is no size limit enforced by the core library - it's genuinely
+is no size limit enforced by the core library - it's
 transport-agnostic, so this check belongs in the provider, not upstream.
 
 ```python

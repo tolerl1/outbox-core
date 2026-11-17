@@ -93,7 +93,7 @@ common case - one enqueuing transaction in flight per key at a time - this
 delivers messages in the order you enqueued them.
 
 That "by id" guarantee is about committed rows, not insertion order across
-genuinely concurrent transactions: `id` is assigned when a row is
+concurrent transactions: `id` is assigned when a row is
 `INSERT`ed, not when its transaction commits, and the claim query can only
 ever see rows that have already committed. If two same-key messages are
 enqueued from overlapping transactions, whichever transaction commits first
