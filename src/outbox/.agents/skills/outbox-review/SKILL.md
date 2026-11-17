@@ -69,7 +69,7 @@ looks.
   outbox rows.
 - Reads, queries, or any code that doesn't pair a DB write with a
   notification in the same operation.
-- Genuinely independent operations that happen to both touch the DB and send
+- Independent operations that happen to both touch the DB and send
   a message, where the message isn't *about* the DB write (no consistency
   requirement between them).
 
